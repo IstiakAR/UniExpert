@@ -15,6 +15,7 @@ import { api } from '../lib/api'
 import './LoginPage.css'
 
 const KNOWN_CAMPUSES = {
+  'du.ac.bd': 'University of Dhaka',
   'stanford.edu': 'Stanford',
   'mit.edu': 'MIT',
   'berkeley.edu': 'UC Berkeley',
@@ -31,7 +32,12 @@ function campusFromEmail(value) {
   const domain = value.split('@')[1]?.toLowerCase().trim()
   if (!domain) return null
   if (KNOWN_CAMPUSES[domain]) return `${KNOWN_CAMPUSES[domain]} Campus`
-  if (domain.endsWith('.edu') || domain.endsWith('.ac.uk')) {
+  if (
+    domain.endsWith('.edu') ||
+    domain.endsWith('.ac.uk') ||
+    domain.endsWith('.ac.bd') ||
+    domain.endsWith('.edu.bd')
+  ) {
     return `${domain.split('.')[0].toUpperCase()} Student`
   }
   return null
@@ -129,10 +135,10 @@ export default function LoginPage({ onAuthenticated }) {
     }
   }
 
-  // Demo shortcut: fills the seeded Stanford account.
+  // Demo shortcut: fills the seeded University of Dhaka account.
   function handleSso() {
     if (isJoin) switchMode('login')
-    setEmail('alex@stanford.edu')
+    setEmail('alex@du.ac.bd')
     setPassword('campus1234')
     setError('')
   }
@@ -457,7 +463,7 @@ export default function LoginPage({ onAuthenticated }) {
               <p className="demo-hint">
                 Demo login:{' '}
                 <button type="button" onClick={handleSso}>
-                  alex@stanford.edu
+                  alex@du.ac.bd
                 </button>{' '}
                 · campus1234
               </p>

@@ -1162,3 +1162,26 @@
     animation-duration: 2.4s;
   }
 }
+
+.dash-category-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 0.7rem;
+}
+
+.dash-category-filters label {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--dash-muted);
+}
+
+.dash-category-filters select {
+  min-width: 0;
+  color-scheme: dark;
+}
+
+.dash-category-filters select:disabled {
+  cursor: default;
+  opacity: 0.55;
+}

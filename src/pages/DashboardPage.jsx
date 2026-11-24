@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   ArrowRight,
   BadgeCheck,
+  BookOpen,
   Check,
   Clock,
   GraduationCap,
@@ -22,6 +23,67 @@ import { api } from '../lib/api'
 import './DashboardPage.css'
 
 const TAGS = ['General', 'Research', 'Design', 'Careers', 'Study Group', 'Events']
+
+const SUBJECTS = {
+  'Computer Science': {
+    'AI / ML Researcher': ['ml researcher', 'ai researcher', 'machine learning researcher'],
+    'Backend Engineer': ['backend engineer', 'back end engineer', 'backend developer'],
+    'Software Engineer': ['software engineer', 'software developer', 'full stack developer'],
+    'Data Scientist': ['data scientist'],
+  },
+  Design: {
+    'Product Designer': ['product designer'],
+    'UX Designer': ['ux designer', 'ui ux designer', 'user experience designer'],
+    'Design Researcher': ['design researcher', 'ux researcher'],
+  },
+  Economics: {
+    Economist: ['economist'],
+    'PhD Candidate': ['phd candidate', 'doctoral candidate'],
+    'Economic Analyst': ['economic analyst', 'policy analyst'],
+  },
+  Medicine: {
+    'Medical Doctor': ['medical doctor', 'physician'],
+    'MD Candidate': ['md candidate', 'medical student'],
+    'Clinical Researcher': ['clinical researcher'],
+  },
+  Entrepreneurship: {
+    Founder: ['founder', 'co founder'],
+    'Startup Advisor': ['startup advisor', 'startup adviser'],
+    'Venture Capital Analyst': ['venture capital analyst'],
+  },
+}
+
+const SUBJECT_KEYWORDS = {
+  'Computer Science': ['computer science', 'machine learning', 'python', 'data science', 'node js', 'software engineering'],
+  Design: ['design', 'figma', 'user experience'],
+  Economics: ['economics', 'economic policy', 'econometrics'],
+  Medicine: ['medicine', 'medical', 'clinical'],
+  Entrepreneurship: ['entrepreneurship', 'startup', 'fundraising', 'saas'],
+}
+
+function profileWords(value = '') {
+  return ` ${value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `
+}
+
+function matchesCategory(expert, subject, position) {
+  if (!subject) return true
+
+  const headline = profileWords(expert.headline || '')
+  const positions = SUBJECTS[subject]
+  const biography = profileWords([expert.headline, expert.expertise].join(' '))
+  const matchesSubject = SUBJECT_KEYWORDS[subject].some((keyword) =>
+    biography.includes(` ${keyword} `),
+  )
+
+  const matchesPosition = (title) => {
+    if (title === 'PhD Candidate' && !matchesSubject) return false
+    return positions[title].some((keyword) => headline.includes(` ${keyword} `))
+  }
+
+  return position
+    ? matchesPosition(position)
+    : matchesSubject || Object.keys(positions).some(matchesPosition)
+}
 
 const AVATAR_PAIRS = [
   ['#a855f7', '#6366f1'],
@@ -171,6 +233,114 @@ function PostCard({ post, onLike }) {
       </footer>
     </article>
   )
+}
+
+function CategoryView({ experts, posts, user, term, onRequest, onLike }) {
+  const [subject, setSubject] = useState('')
+  const [position, setPosition] = useState('')
+  const [authorId, setAuthorId] = useState('')
+  const positions = subject ? Object.keys(SUBJECTS[subject]) : []
+
+  const branchExperts = experts.filter((expert) => matchesCategory(expert, subject, position))
+  const expertIds = new Set(branchExperts.map((expert) => expert.id))
+  const branchPosts = subject ? posts.filter((post) => expertIds.has(post.author.id)) : posts
+  const authors = [...new Map(branchPosts.map(({ author }) => [author.id, author])).values()]
+    .sort((left, right) => left.name.localeCompare(right.name))
+  const visibleExperts = branchExperts.filter((expert) =>
+    matchesSearch(term, [expert.name, expert.campus, expert.headline, expert.expertise]),
+  )
+  const visiblePosts = branchPosts.filter((post) =>
+    (!authorId || String(post.author.id) === authorId) &&
+    matchesSearch(term, [post.body, post.author.name, post.author.campus, post.tag]),
+  )
+
+  return (
+    <div className="dash-stack">
+      <div className="dash-head">
+        <h2>Category</h2>
+        <p>Browse mentors and their posts by subject and professional position.</p>
+      </div>
+      <div className="dash-composer dash-category-filters">
+        <label>
+          Subject
+          <select
+            className="dash-select"
+            value={subject}
+            onChange={(event) => {
+              setSubject(event.target.value)
+              setPosition('')
+              setAuthorId('')
+            }}
+          >
+            <option value="">All subjects</option>
+            {Object.keys(SUBJECTS).map((name) => <option key={name}>{name}</option>)}
+          </select>
+        </label>
+        <label>
+          Professional position
+          <select
+            className="dash-select"
+            value={position}
+            disabled={!subject}
+            onChange={(event) => {
+              setPosition(event.target.value)
+              setAuthorId('')
+            }}
+          >
+            <option value="">All positions</option>
+            {positions.map((title) => <option key={title}>{title}</option>)}
+          </select>
+        </label>
+        <label>
+          Posted by
+          <select
+            className="dash-select"
+            value={authorId}
+            onChange={(event) => setAuthorId(event.target.value)}
+          >
+            <option value="">All authors</option>
+            {authors.map((author) => (
+              <option key={author.id} value={author.id}>{author.name}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <section className="dash-stack" aria-labelledby="category-mentors">
+        <div className="dash-head"><h2 id="category-mentors">Mentors</h2></div>
+        {visibleExperts.length ? (
+          <div className="dash-mentor-grid">
+            {visibleExperts.map((expert, index) => (
+              <MentorCard key={expert.id} expert={expert} user={user} onRequest={onRequest} index={index} />
+            ))}
+          </div>
+        ) : (
+          <div className="dash-empty dash-empty--boxed">
+            <Users size={22} />
+            <p>No mentors match these filters.</p>
+          </div>
+        )}
+      </section>
+
+      <section className="dash-stack" aria-labelledby="category-posts">
+        <div className="dash-head"><h2 id="category-posts">Campus posts</h2></div>
+        {visiblePosts.length ? (
+          <div className="dash-posts">
+            {visiblePosts.map((post) => <PostCard key={post.id} post={post} onLike={onLike} />)}
+          </div>
+        ) : (
+          <div className="dash-empty dash-empty--boxed">
+            <MessageSquare size={22} />
+            <p>No posts match these filters.</p>
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
+function matchesSearch(term, fields) {
+  return !term || fields.some((field) => field?.toLowerCase().includes(term))
 }
 
 function Composer({ user, onCreate }) {
@@ -629,21 +799,12 @@ export default function DashboardPage({ user, onSignOut }) {
 
   const term = query.trim().toLowerCase()
 
-  const visibleExperts = term
-    ? experts.filter((expert) =>
-        [expert.name, expert.campus, expert.headline, expert.expertise]
-          .filter(Boolean)
-          .some((field) => field.toLowerCase().includes(term)),
-      )
-    : experts
-
-  const visiblePosts = term
-    ? posts.filter((post) =>
-        [post.body, post.author.name, post.author.campus, post.tag]
-          .filter(Boolean)
-          .some((field) => field.toLowerCase().includes(term)),
-      )
-    : posts
+  const visibleExperts = experts.filter((expert) =>
+    matchesSearch(term, [expert.name, expert.campus, expert.headline, expert.expertise]),
+  )
+  const visiblePosts = posts.filter((post) =>
+    matchesSearch(term, [post.body, post.author.name, post.author.campus, post.tag]),
+  )
 
   const pendingIncoming = requests.incoming.filter(
     (request) => request.status === 'pending',
@@ -652,6 +813,7 @@ export default function DashboardPage({ user, onSignOut }) {
   const navItems = [
     { id: 'overview', label: 'Overview', icon: LayoutGrid },
     { id: 'mentors', label: 'Mentors', icon: Users },
+    { id: 'category', label: 'Category', icon: BookOpen },
     { id: 'feed', label: 'Campus feed', icon: MessageSquare },
     { id: 'requests', label: 'Requests', icon: Inbox, badge: pendingIncoming },
   ]
@@ -723,14 +885,21 @@ export default function DashboardPage({ user, onSignOut }) {
 
   async function handleApprove(id) {
     try {
-      await api.approveUser(id)
+      const { user: approved } = await api.approveUser(id)
+      if (approved.role === 'expert') {
+        setExperts((prev) =>
+          [...prev, { ...approved, openRequest: null }].sort((left, right) =>
+            left.name.localeCompare(right.name),
+          ),
+        )
+      }
       setPending((prev) => prev.filter((person) => person.id !== id))
       setStats((prev) =>
         prev
           ? {
               ...prev,
               pending: Math.max(0, prev.pending - 1),
-              experts: prev.experts + 1,
+              experts: prev.experts + Number(approved.role === 'expert'),
             }
           : prev,
       )
@@ -874,6 +1043,17 @@ export default function DashboardPage({ user, onSignOut }) {
                   </div>
                 )}
               </div>
+            )}
+
+            {tab === 'category' && (
+              <CategoryView
+                experts={experts}
+                posts={posts}
+                user={user}
+                term={term}
+                onRequest={setRequestTarget}
+                onLike={handleLike}
+              />
             )}
 
             {tab === 'feed' && (

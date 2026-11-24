@@ -4,7 +4,9 @@ import { spawn } from 'node:child_process'
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 
 const children = [
-  spawn('node', ['--watch', 'server/index.js'], { stdio: 'inherit' }),
+  spawn('node', ['--env-file-if-exists=.env', '--watch', 'server/index.js'], {
+    stdio: 'inherit',
+  }),
   spawn(npm, ['run', 'dev'], { stdio: 'inherit' }),
 ]
 
